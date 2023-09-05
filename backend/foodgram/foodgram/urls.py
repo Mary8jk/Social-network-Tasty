@@ -7,18 +7,19 @@ from rest_framework_simplejwt.views import (TokenObtainPairView,
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
-    path('api/v1/jwt/create/', TokenObtainPairView.as_view(),
-         name='token_obtain_pair'),
-    path('api/v1/jwt/refresh/', TokenRefreshView.as_view(),
-         name='token_refresh'),
-    path('api/v1/jwt/verify/', TokenVerifyView.as_view(),
-         name='token_verify'),
+#    path('recipes/', include('recipes.urls')),
+#     path('api/', include('api.urls')),
+#     path('api/v1/jwt/create/', TokenObtainPairView.as_view(),
+#          name='token_obtain_pair'),
+#     path('api/v1/jwt/refresh/', TokenRefreshView.as_view(),
+#          name='token_refresh'),
+#     path('api/v1/jwt/verify/', TokenVerifyView.as_view(),
+#          name='token_verify'),
 ]
 
-handler404 = 'core.views.page_not_found' # хандлеры добавить в приложение кор
-handler403 = 'core.views.permission_denied'
+# handler404 = 'core.views.page_not_found' # хандлеры добавить в приложение кор
+# handler403 = 'core.views.permission_denied'
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+# if settings.DEBUG:
+#     urlpatterns += static(settings.MEDIA_URL,
+#                           document_root=settings.MEDIA_ROOT)
