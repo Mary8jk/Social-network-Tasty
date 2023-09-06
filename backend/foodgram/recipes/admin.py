@@ -4,11 +4,13 @@ from .models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscribe
 
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('name', 'measurement_unit')
+    search_fields = ('name',)
     list_filter = ('name',)
 
 
 class RecipesAdmin(admin.ModelAdmin):
     list_display = ('name', 'author', 'favorite_count')
+    search_fields = ('ingredient',)
     list_filter = ('name', 'author', 'tag',)
 
     def favorite_count(self, obj):
