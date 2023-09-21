@@ -3,11 +3,11 @@ from users.models import User
 
 
 class Tag(models.Model):
-    name = models.CharField(max_length=60, help_text="Название тэга")
+    name = models.CharField(max_length=60, help_text='name of tag')
     color = models.CharField(max_length=7,
-                             help_text="Цвет тэга (например, '#FF0000')")
+                             help_text='color (ex, #FF0000)')
     slug = models.CharField(max_length=60,
-                            help_text="Уникальный идентификатор тэга")
+                            help_text='slug')
 
     def __str__(self):
         return self.name
@@ -15,7 +15,6 @@ class Tag(models.Model):
 
 class Ingredient(models.Model):
     name = models.CharField(max_length=60)
-    amount = models.IntegerField(null=True)
     measurement_unit = models.CharField(max_length=30)
 
     def __str__(self):
@@ -32,18 +31,37 @@ class Recipe(models.Model):
         default=None
     )
     text = models.CharField(max_length=1200)
-    ingredient = models.ManyToManyField(Ingredient, related_name='recipes')
-    tag = models.ManyToManyField(Tag, related_name='recipes')
+    ingredients = models.ManyToManyField(Ingredient,
+                                         through='RecipeIngredient',
+                                         through_fields=(
+                                             'recipe', 'ingredient',
+                                             'measurement_unit'))
+    tag = models.ManyToManyField(Tag, through='TagRecipe')
     cooking_time = models.IntegerField()
 
     def __str__(self):
         return self.name
 
 
+class RecipeIngredient(models.Model):
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE,
+                                   related_name='recipe_ingredients')
+    amount = models.PositiveIntegerField()
+ #   measurement_unit = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.ingredient.name} {self.amount}'
+
+
 class Favorite(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE)
-    recipes = models.ManyToManyField(Recipe, related_name='favorites')
+    recipes = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, related_name='favorite_recipes')
+
+    def __str__(self):
+        return f'{self.user} {self.recipe}'
 
 
 class Subscribe(models.Model):
@@ -56,27 +74,39 @@ class Subscribe(models.Model):
         on_delete=models.CASCADE,
         related_name='following')
 
-    def __str__(self):
-        return str(self.user)
-
-
-class ShoppingListIngredient(models.Model):
-    shopping_list = models.ForeignKey(
-        'ShoppingCart',
-        on_delete=models.CASCADE,
-        related_name='ingredients_for_buy'
-    )
-    ingredient = models.ForeignKey(
-        Ingredient,
-        on_delete=models.CASCADE,
-        related_name='shopping_lists'
-    )
-    amount = models.IntegerField()
+    class Meta:
+        unique_together = ('user', 'following')
 
 
 class ShoppingCart(models.Model):
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE)
-    ingredients = models.ManyToManyField(
-        ShoppingListIngredient,
-        related_name='shopping_carts')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE,
+                               related_name='shopping_carts')
+
+
+class ShoppingListRecipe(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    ingredient = models.ManyToManyField(ShoppingCart,
+                                        through='ShoppingListRecipeIngredient',
+                                        related_name='shopping_lists')
+    amount_needed = models.PositiveIntegerField()
+    measurement_unit = models.ForeignKey(Ingredient, on_delete=models.CASCADE,
+                                         related_name='shopping_list_units')
+
+
+class ShoppingListRecipeIngredient(models.Model):
+    shopping_list_recipe = models.ForeignKey(ShoppingListRecipe,
+                                             on_delete=models.CASCADE)
+    shopping_cart = models.ForeignKey(ShoppingCart, on_delete=models.CASCADE)
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE,
+                                   related_name='shopping_list_ingredients')
+    amount_needed = models.PositiveIntegerField()
+    measurement_unit = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+
+
+class TagRecipe(models.Model):
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.tag} {self.recipe}'

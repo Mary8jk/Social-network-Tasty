@@ -15,10 +15,8 @@ urlpatterns = [
           name='token_refresh'),
      path('api/auth/token/verify/', TokenVerifyView.as_view(),
           name='token_verify'),
- #    path('api/auth/token/logout/', TokenBlacklistView.as_view(),
- #         name='token_logout'), - блэклиста нет в jwt
 ]
-#    path('recipes/', include('recipes.urls')),
+
 
 
 
