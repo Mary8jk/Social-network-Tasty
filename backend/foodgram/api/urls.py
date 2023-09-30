@@ -1,9 +1,6 @@
 from rest_framework import routers
 from django.urls import include, path
 from django.urls import re_path
-from rest_framework_simplejwt.views import (TokenObtainPairView,
-                                            TokenRefreshView,
-                                            TokenVerifyView,)
 from api.views import (CustomUserViewSet, CustomUserDeleteApiView,
                        CustomUserMeViewSet, CustomUserUpdateViewSet,
                        TagViewSet, RecipeViewSet, SubscribeViewSet,

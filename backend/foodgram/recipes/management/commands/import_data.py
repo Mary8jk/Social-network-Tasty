@@ -16,4 +16,5 @@ class Command(BaseCommand):
                     name=name,
                     measurement_unit=measurement_unit
                 )
-                self.stdout.write(self.style.SUCCESS('Successfully imported data'))
+                self.stdout.write(self.style.SUCCESS(
+                    'Successfully imported data'))

@@ -47,7 +47,6 @@ class RecipeIngredient(models.Model):
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE,
                                    related_name='recipe_ingredients')
     amount = models.PositiveIntegerField()
- #   measurement_unit = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
 
     def __str__(self):
         return f'{self.ingredient.name} {self.amount}'

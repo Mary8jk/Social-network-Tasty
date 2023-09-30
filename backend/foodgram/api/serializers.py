@@ -1,15 +1,10 @@
 from djoser.serializers import UserSerializer
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 from users.models import User
-from rest_framework.response import Response
-from rest_framework.exceptions import NotFound
-from django.db import transaction
-from rest_framework import status
 from drf_extra_fields.fields import Base64ImageField
 from recipes.models import (Tag, Recipe, Ingredient,
                             RecipeIngredient, Subscribe, Favorite,
-                            TagRecipe, ShoppingCart, ShoppingListRecipe)
+                            TagRecipe, ShoppingCart)
 
 
 class CustomUserSerializer(UserSerializer):
@@ -141,7 +136,13 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         if not value:
-            raise serializers.ValidationError("Image field cannot be empty.")
+            raise serializers.ValidationError('Image field cannot be empty.')
+        return value
+
+    def validate_cooking_time(self, value):
+        if value < 1:
+            raise serializers.ValidationError(
+                'Cooking time cannot be less than 1 minute.')
         return value
 
     def to_representation(self, instance):

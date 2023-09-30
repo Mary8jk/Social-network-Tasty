@@ -1,36 +1,37 @@
 from rest_framework import viewsets
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from django.db.models import Sum
 from django.http.response import HttpResponse
 from rest_framework import status
-from rest_framework.pagination import (LimitOffsetPagination,
-                                       PageNumberPagination)
-from .permissions import AdminOrAuthorOrReadOnly
+from rest_framework.pagination import LimitOffsetPagination
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
-from api.mixins import MixinSet
 from rest_framework import status
 from django.db import IntegrityError
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
 
 from users.models import User
-from recipes.models import Tag, Recipe, Subscribe, Ingredient, Favorite, RecipeIngredient, TagRecipe, ShoppingCart
+from recipes.models import (Tag, Recipe, Subscribe, Ingredient,
+                            Favorite, RecipeIngredient, TagRecipe,
+                            ShoppingCart)
 from .serializers import (CustomUserSerializer, TagSerializer,
                           RecipeListSerializer, SubscribeSerializer,
-                          IngredientSerializer, IngredientListSerializer,
+                          IngredientListSerializer,
                           FavoriteSerializer, RecipeSerializer,
-                          RecipeIngredientSerializer, TagRecipeSerializer,
-                          ShoppingCartSerializer, RecipeShoppingCartSerializer)
+                          ShoppingCartSerializer)
+from .filters import IngredientFilter, RecipeFilter
+from .permissions import AdminOrAuthorOrReadOnly
+from .paginations import CustomPagination
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = LimitOffsetPagination
+    pagination_class = CustomPagination
 
     def list(self, request, *args, **kwargs):
         users = User.objects.all()
@@ -74,7 +75,6 @@ class CustomUserUpdateViewSet(generics.UpdateAPIView):
 
         user.set_password(new_password)
         user.save()
-
         return Response({'message': 'Password updated successfully.'},
                         status=status.HTTP_200_OK)
 
@@ -82,7 +82,7 @@ class CustomUserUpdateViewSet(generics.UpdateAPIView):
 class CustomUserDeleteApiView(generics.DestroyAPIView):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = (AdminOrAuthorOrReadOnly,)
+    permission_classes = [AdminOrAuthorOrReadOnly]
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -94,7 +94,7 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class SubscribeListViewSet(viewsets.ModelViewSet):
     queryset = Subscribe.objects.all()
     serializer_class = SubscribeSerializer
-    pagination_class = LimitOffsetPagination
+    pagination_class = CustomPagination
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
@@ -106,6 +106,7 @@ class SubscribeListViewSet(viewsets.ModelViewSet):
 
 class SubscribeViewSet(viewsets.GenericViewSet):
     serializer_class = SubscribeSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user_id = self.kwargs['id']
@@ -143,8 +144,10 @@ class SubscribeViewSet(viewsets.GenericViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = (AdminOrAuthorOrReadOnly,)
-    pagination_class = LimitOffsetPagination
+    permission_classes = [AdminOrAuthorOrReadOnly]
+    pagination_class = CustomPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         if self.action == 'list' or self.action == 'retrieve':
@@ -222,7 +225,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(instance,
+                                         data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -233,7 +237,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 ingredient_id = ingredient_data.get('id')
                 amount = ingredient_data.get('amount')
                 ingredient = get_object_or_404(Ingredient, id=ingredient_id)
-                RecipeIngredient.objects.create(recipe=instance, ingredient=ingredient, amount=amount)
+                RecipeIngredient.objects.create(recipe=instance,
+                                                ingredient=ingredient,
+                                                amount=amount)
         if 'tags' in request.data:
             tags_data = request.data.get('tags', [])
             instance.tag.clear()
@@ -246,12 +252,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientListSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [IngredientFilter]
     pagination_class = LimitOffsetPagination
 
 
 class FavoriteViewSet(viewsets.GenericViewSet):
     queryset = Favorite.objects.all()
     serializer_class = FavoriteSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['POST'])
     def add_favorite(self, request, id=None):
