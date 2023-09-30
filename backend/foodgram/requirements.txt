@@ -17,3 +17,4 @@ PyJWT==2.1.0
 requests==2.26.0
 drf-extra-fields==2.0.0
 django-filter==23.3
+flake8==6.1.0

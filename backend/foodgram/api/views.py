@@ -173,8 +173,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipes = Recipe.objects.filter(shopping_carts__user=request.user)
         ingredients = RecipeIngredient.objects.filter(
             recipe__in=recipes).order_by('ingredient__name').values(
-            'ingredient__name', 'ingredient__measurement_unit'
-            ).annotate(amount=Sum('amount'))
+            'ingredient__name', 'ingredient__measurement_unit').annotate(
+            amount=Sum('amount'))
         return self.send_message(ingredients)
 
     @action(detail=True, methods=['POST'],
