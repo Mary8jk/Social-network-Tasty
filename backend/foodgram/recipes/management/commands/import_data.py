@@ -7,7 +7,8 @@ class Command(BaseCommand):
     help = 'Import data from CSV file'
 
     def handle(self, *args, **kwargs):
-        csv_file = '/Users/Maria/Dev/foodgram-project-react/data/ingredients.csv'
+        csv_file = (
+            '/Users/Maria/Dev/foodgram-project-react/data/ingredients.csv')
         with open(csv_file, 'r', encoding='utf-8') as file:
             csv_reader = csv.reader(file)
             for row in csv_reader:
