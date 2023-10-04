@@ -1,10 +1,10 @@
 from rest_framework import routers
 from django.urls import include, path
-from api.views import (CustomUserViewSet, CustomUserDeleteApiView,
+from api.views import (CustomUserViewSet,
                        CustomUserMeViewSet, CustomUserUpdateViewSet,
                        TagViewSet, RecipeViewSet, SubscribeViewSet,
                        SubscribeListViewSet, IngredientViewSet,
-                       FavoriteViewSet)
+                       FavoriteViewSet, CustomUserLogoutView)
 
 
 app_name = 'api'
@@ -16,7 +16,7 @@ router.register('recipes', RecipeViewSet)
 router.register('ingredients', IngredientViewSet)
 
 urlpatterns = [
-    path('auth/token/logout/', CustomUserDeleteApiView.as_view(),
+    path('auth/token/logout/', CustomUserLogoutView.as_view(),
          name='token_logout'),
     path('users/me/', CustomUserMeViewSet.as_view(),
          name='users-me'),

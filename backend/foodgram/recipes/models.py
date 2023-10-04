@@ -71,9 +71,16 @@ class Subscribe(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='following')
+    recipes_count = models.IntegerField(default=0)
+    recipes = models.ManyToManyField(Recipe, related_name='subscribers')
 
     class Meta:
-        unique_together = ('user', 'following')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'following'],
+                name='unique_user_following'
+            )
+        ]
 
 
 class ShoppingCart(models.Model):

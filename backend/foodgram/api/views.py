@@ -1,5 +1,8 @@
 from rest_framework import viewsets
+from django.contrib.auth import logout
+from rest_framework.views import APIView
 from rest_framework import generics
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from django_filters.rest_framework import DjangoFilterBackend
@@ -7,10 +10,8 @@ from rest_framework.response import Response
 from django.db.models import Sum
 from django.http.response import HttpResponse
 from rest_framework import status
-from rest_framework.pagination import LimitOffsetPagination
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
-from django.db import IntegrityError
 
 from users.models import User
 from recipes.models import (Tag, Recipe, Subscribe, Ingredient,
@@ -20,7 +21,9 @@ from .serializers import (CustomUserSerializer, TagSerializer,
                           RecipeListSerializer, SubscribeSerializer,
                           IngredientListSerializer,
                           FavoriteSerializer, RecipeSerializer,
-                          ShoppingCartSerializer)
+                          ShoppingCartSerializer, CustomUserUpdateSerializer,
+                          SubscribeSerializer, SubscribeListSerializer,
+                          )
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import AdminOrAuthorOrReadOnly
 from .paginations import CustomPagination
@@ -30,15 +33,15 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
+    pagination_class = PageNumberPagination
 
     def list(self, request, *args, **kwargs):
-        users = User.objects.all()
+        users = self.get_queryset()
         user = request.user
         data = []
+        user_followers = user.follower.values_list('following', flat=True)
         for user_to_check in users:
-            is_subscribed = user.follower.filter(
-                following=user_to_check).exists()
+            is_subscribed = user_to_check.id in user_followers
             serializer = self.get_serializer(user_to_check)
             user_data = serializer.data
             user_data['is_subscribed'] = is_subscribed
@@ -54,34 +57,21 @@ class CustomUserMeViewSet(generics.RetrieveAPIView):
         return self.request.user
 
 
-class CustomUserUpdateViewSet(generics.UpdateAPIView):
-    serializer_class = CustomUserSerializer
+class CustomUserUpdateViewSet(generics.CreateAPIView):
+    serializer_class = CustomUserUpdateSerializer
     permission_classes = (AdminOrAuthorOrReadOnly,)
 
-    def update(self, request):
-        user = self.request.user
-        current_password = request.data.get('current_password', None)
-        new_password = request.data.get('new_password', None)
 
-        if not current_password or not new_password:
-            return Response({'error': r'Both current_password '
-                             r'and new_password are required.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+class CustomUserLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    # тут я еще думаю как токен удалять) встроенных методов
+    # для jwt нет, метода delete для токена тоже не предусмотрено
 
-        if not user.check_password(current_password):
-            return Response({'error': 'Current password is incorrect.'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        user.set_password(new_password)
-        user.save()
-        return Response({'message': 'Password updated successfully.'},
-                        status=status.HTTP_200_OK)
-
-
-class CustomUserDeleteApiView(generics.DestroyAPIView):
-    queryset = User.objects.all()
-    serializer_class = CustomUserSerializer
-    permission_classes = [AdminOrAuthorOrReadOnly]
+    def post(self, request):
+        authorization_header = request.META.get('HTTP_AUTHORIZATION')
+        if authorization_header and authorization_header.startswith('Bearer '):
+            logout(request)
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -91,15 +81,14 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class SubscribeListViewSet(viewsets.ModelViewSet):
-    queryset = Subscribe.objects.all()
-    serializer_class = SubscribeSerializer
-    pagination_class = CustomPagination
+    serializer_class = SubscribeListSerializer
+    pagination_class = PageNumberPagination
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
-        user = request.user
-        subscriptions = Subscribe.objects.filter(user=user)
-        serializer = self.get_serializer(subscriptions, many=True)
+        queryset = User.objects.filter(
+            following__user=request.user).prefetch_related('follower__recipes')
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -113,32 +102,33 @@ class SubscribeViewSet(viewsets.GenericViewSet):
         return queryset
 
     @action(detail=False, methods=['POST'])
+    #     То есть ты сначала создаешь юзера, а потом прокидываешь в
+    # сериализатор. Но сначала ты создаешь, а потом получаешь) нет
+    # смысла в этом, как минимум ты можешь сделать так:
+    # subcriber = Subscribe.objects.create(user=user, following_id=user_id)
+    # и потом перекидывать в serializer_class Поферакторь метод,
+    # выглядит совсем не очень ( напиши в лс, вместе попробуем (ревью)
+    # тут мы получаем дату и валидируем, это правильно?
+    # не совсем поняла что вы имели ввиду,те создать экземпляр
+    # а потом валидировать?
     def subscribe(self, request, id=None):
         user_id = self.kwargs['id']
         user = self.request.user
-        if user_id == user.id:
-            return Response({'error': 'You cannot subscribe to yourself'},
-                            status=status.HTTP_400_BAD_REQUEST)
-        try:
-            Subscribe.objects.create(user=user, following_id=user_id)
-            serializer = self.serializer_class(
-                Subscribe.objects.get(user=user, following_id=user_id))
-            return Response(serializer.data)
-        except IntegrityError:
-            return Response({'error': 'Subscription already exists'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        data = {'user': user.id, 'following': user_id}
+        serializer = self.serializer_class(data=data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['DELETE'])
     def unsubscribe(self, request, id=None):
         user_id = self.kwargs['id']
         user = self.request.user
-        try:
-            subscription = Subscribe.objects.get(user=user,
-                                                 following_id=user_id)
-            subscription.delete()
-            return Response({'message': 'Unsubscribed successfully'})
-        except Subscribe.DoesNotExist:
-            return Response({'message': 'Subscription not found'})
+        subscription = get_object_or_404(Subscribe, user=user,
+                                         following_id=user_id)
+        subscription.delete()
+        return Response({'message': 'Unsubscribed successfully'})
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -149,7 +139,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
-        if self.action == 'list' or self.action == 'retrieve':
+        if self.action in ['list', 'retrieve']:
             return RecipeListSerializer
         elif self.action in ['create', 'update', 'partial_update']:
             return RecipeSerializer
@@ -253,7 +243,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientListSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [IngredientFilter]
-    pagination_class = LimitOffsetPagination
+    pagination_class = PageNumberPagination
 
 
 class FavoriteViewSet(viewsets.GenericViewSet):
@@ -270,22 +260,16 @@ class FavoriteViewSet(viewsets.GenericViewSet):
         if existing_favorite:
             return Response({'error': 'Recipe already add'},
                             status=status.HTTP_400_BAD_REQUEST)
-        try:
-            Favorite.objects.create(user=user, recipes_id=recipes_id)
-            serializer = self.serializer_class(
-                Favorite.objects.get(user=user, recipes_id=recipes_id))
-            return Response(serializer.data)
-        except IntegrityError:
-            return Response({'message': 'Recipe does not exist'})
+        Favorite.objects.create(user=user, recipes_id=recipes_id)
+        serializer = self.serializer_class(
+            Favorite.objects.get(user=user, recipes_id=recipes_id))
+        return Response(serializer.data)
 
     @action(detail=False, methods=['DELETE'])
     def del_favorite(self, request, id=None):
         recipes_id = self.kwargs['id']
         user = self.request.user
-        favorite_to_delete = Favorite.objects.filter(
-            user=user, recipes_id=recipes_id)
-        if favorite_to_delete.exists():
-            favorite_to_delete.delete()
-            return Response({'message': 'Recipe removed successfully'})
-        else:
-            return Response({'message': 'Recipe not found'})
+        favorite_to_delete = get_object_or_404(Favorite, user=user.id,
+                                               recipes=recipes_id)
+        favorite_to_delete.delete()
+        return Response({'message': 'Recipe removed successfully'})
