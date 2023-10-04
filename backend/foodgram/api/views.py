@@ -22,8 +22,7 @@ from .serializers import (CustomUserSerializer, TagSerializer,
                           IngredientListSerializer,
                           FavoriteSerializer, RecipeSerializer,
                           ShoppingCartSerializer, CustomUserUpdateSerializer,
-                          SubscribeSerializer, SubscribeListSerializer,
-                          )
+                          SubscribeListSerializer)
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import AdminOrAuthorOrReadOnly
 from .paginations import CustomPagination
