@@ -98,15 +98,11 @@ class RecipeIngredientDetailSerializer(serializers.ModelSerializer):
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
-    # Создай отдельный сериализатор для ингредиентов и вместо:
-    # ingredients = serializers.SerializerMethodField()  используй его. (ревью)
-    # вот здесь не поняла как это реализовать, тк в response же список словарей
-    # ingredients, но записала короче чем было через staticmethod и новый
-    # сериализатор RecipeIngredientDetailSerializer
     tag = TagSerializer(many=True)
     author = CustomUserSerializer(
         read_only=True)
-    ingredients = serializers.SerializerMethodField()
+    ingredients = RecipeIngredientDetailSerializer(
+        many=True, read_only=True, source='recipeingredient_set')
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
 
@@ -115,11 +111,6 @@ class RecipeListSerializer(serializers.ModelSerializer):
         fields = ('id', 'tag', 'author', 'ingredients',
                   'is_favorited', 'is_in_shopping_cart',
                   'name', 'image', 'text', 'cooking_time')
-
-    @staticmethod
-    def get_ingredients(obj):
-        queryset = RecipeIngredient.objects.filter(recipe=obj)
-        return RecipeIngredientDetailSerializer(queryset, many=True).data
 
     def get_is_favorited(self, obj):
         request = self.context.get('request')
@@ -136,10 +127,13 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
 class TagRecipeSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='tag.id')
+    name = serializers.ReadOnlyField(source='tag.name')
+    color = serializers.ReadOnlyField(source='tag.color')
+    slug = serializers.ReadOnlyField(source='tag.slug')
 
     class Meta:
         model = TagRecipe
-        fields = ('id',)
+        fields = ('id', 'name', 'color', 'slug',)
 
 
 class RecipeIngredientDetailCreateSerializer(serializers.ModelSerializer):
@@ -152,24 +146,19 @@ class RecipeIngredientDetailCreateSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    # def to_representation(self, instance):
-    # В этом нет смысла, судя по всему, просто используй правильный
-    # сериализатор во вьюхе. (ревью)
-    # тут вроде с полями ingredients и tags разобалась, но поводу
-    # def to_representation пока думаю как без него обойтись,
-    # я так поняла с помощью
-    # to_representation можно подогнать данные к форме ответа
-    # в том числе? пока что убрала репрезентейшн
     author = CustomUserSerializer(read_only=True)
-    ingredients = RecipeIngredientDetailCreateSerializer(
+    ingredients = RecipeIngredientDetailSerializer(
         many=True, read_only=True, source='recipeingredient_set')
     tags = TagRecipeSerializer(
         many=True, read_only=True, source='tagrecipe_set')
     image = Base64ImageField()
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
-        fields = ('id', 'tags', 'author', 'ingredients', 'name',
+        fields = ('id', 'tags', 'author', 'ingredients',
+                  'is_favorited', 'is_in_shopping_cart', 'name',
                   'image', 'text', 'cooking_time',)
 
     def validate_image(self, value):
@@ -182,6 +171,18 @@ class RecipeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 'Cooking time cannot be less than 1 minute.')
         return value
+
+    def get_is_favorited(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.favorite_recipes.filter(user=request.user).exists()
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        request = self.context.get('request')
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.shopping_carts.filter(user=request.user).exists()
 
 
 class CustomRecipeSerializer(RecipeListSerializer):
@@ -227,12 +228,21 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 class SubscribeSerializer(serializers.ModelSerializer):
     recipes = CustomRecipeSerializer(read_only=True, many=True,
                                      source='following.recipes')
-    follow = CustomUserSerializer(read_only=True, source='following')
+    email = serializers.EmailField(source='following.email', read_only=True)
+    id = serializers.IntegerField(source='following.id', read_only=True)
+    username = serializers.CharField(source='following.username',
+                                     read_only=True)
+    first_name = serializers.CharField(source='following.first_name',
+                                       read_only=True)
+    last_name = serializers.CharField(source='following.last_name',
+                                      read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscribe
-        fields = ('follow', 'user', 'following', 'recipes', 'recipes_count',)
-        read_only_fields = ('follow',)
+        fields = ('email', 'id', 'username', 'first_name', 'last_name',
+                  'is_subscribed', 'user', 'following', 'recipes',
+                  'recipes_count',)
         extra_kwargs = {'user': {'write_only': True},
                         'following': {'write_only': True}}
         validators = [
@@ -243,20 +253,17 @@ class SubscribeSerializer(serializers.ModelSerializer):
             )
         ]
 
+    def get_is_subscribed(self, obj):
+        return Subscribe.objects.filter(
+            user=obj.user, following=obj.following
+        ).exists()
+
     def validate(self, data):
         user = data['user']
         following_id = data['following']
         if user == following_id:
             raise serializers.ValidationError(
                 'You cannot subscribe to yourself')
-        return data
-
-    # здесь репрезентейшн как убрать обертку follow не понятно пока что
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        user = instance.following
-        recipes_count = Recipe.objects.filter(author=user).count()
-        data['recipes_count'] = recipes_count
         return data
 
 
@@ -271,7 +278,6 @@ class SubscribeListSerializer(CustomUserSerializer):
         recipes = obj.recipes.all()
         return CustomRecipeSerializer(recipes, many=True).data
 
-    # еее тут разбралась, только надо подумать как getы убрать или не убрать
     class Meta:
         model = User
         fields = CustomUserSerializer.Meta.fields + ('recipes',

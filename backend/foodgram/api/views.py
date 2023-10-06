@@ -1,6 +1,7 @@
 from rest_framework import viewsets
-from django.contrib.auth import logout
 from rest_framework.views import APIView
+from rest_framework_simplejwt.token_blacklist.models import (OutstandingToken,
+                                                             BlacklistedToken)
 from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import (IsAuthenticated,
@@ -61,16 +62,37 @@ class CustomUserUpdateViewSet(generics.CreateAPIView):
     permission_classes = (AdminOrAuthorOrReadOnly,)
 
 
-class CustomUserLogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-    # тут я еще думаю как токен удалять) встроенных методов
-    # для jwt нет, метода delete для токена тоже не предусмотрено
-
+class ResetTokenAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
+    """
+    Adding all refresh tokens in black list
+    """
     def post(self, request):
-        authorization_header = request.META.get('HTTP_AUTHORIZATION')
-        if authorization_header and authorization_header.startswith('Bearer '):
-            logout(request)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        # Удали токен с клиента. На сервере, в случае JWT, не храни состояние
+        # сессии. Токены JWT могут быть действительными до истечения срока,
+        # даже если вы вышли из сессии. Для действительного выхода, добавь
+        # черный список (blacklist) для токенов. Пакет
+        # django-rest-framework-simplejwt обеспечивает черный список и
+        # обновление токенов автоматически. надеюсь так яснее)(ревью)
+        # в документации по JWT насколько я поняла есть инфа о том что
+        # только refresh можно кидать в чс. То есть я устанавливаю небольшую
+        # дельту для access, затем использую refresh.
+        # В случае когда добавляю токен в чс по auth/token/logout/ я прописываю
+        # в постмене во вкладке Authorization (тип Bearer token) токен
+        #  и затем при попытке обновления api/auth/token/refresh/ вижу что
+        # токен в блэклисте {"detail": "Token is blacklisted",
+        # "code": "token_not_valid"}. но в любом случае временную
+        # дельту access токен будет отрабатывать
+        # Такой вариант будет ок?
+        # вообще у нас в уроке к диплому "Подсказки и лайфхаки" есть фраза
+        # "При переносе стандартного процесса авторизации Django в формат
+        # REST API вам понадобится библиотека Djoser." но вроде как это
+        # просто рекомендация а не часть тз. Могу я оставить JWT?
+        tokens = OutstandingToken.objects.filter(user_id=request.user.id)
+        for token in tokens:
+            t, _ = BlacklistedToken.objects.get_or_create(token=token)
+        return Response('Successful Logout',
+                        status=status.HTTP_205_RESET_CONTENT)
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -81,9 +103,9 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 
 class SubscribeListViewSet(viewsets.ModelViewSet):
     serializer_class = SubscribeListSerializer
-    pagination_class = PageNumberPagination
+    pagination_class = CustomPagination
 
-    @action(detail=False, methods=['GET'])
+    @action(detail=False, methods=['GET'],)
     def subscriptions(self, request):
         queryset = User.objects.filter(
             following__user=request.user).prefetch_related('follower__recipes')
@@ -101,24 +123,14 @@ class SubscribeViewSet(viewsets.GenericViewSet):
         return queryset
 
     @action(detail=False, methods=['POST'])
-    #     То есть ты сначала создаешь юзера, а потом прокидываешь в
-    # сериализатор. Но сначала ты создаешь, а потом получаешь) нет
-    # смысла в этом, как минимум ты можешь сделать так:
-    # subcriber = Subscribe.objects.create(user=user, following_id=user_id)
-    # и потом перекидывать в serializer_class Поферакторь метод,
-    # выглядит совсем не очень ( напиши в лс, вместе попробуем (ревью)
-    # тут мы получаем дату и валидируем, это правильно?
-    # не совсем поняла что вы имели ввиду,те создать экземпляр
-    # а потом валидировать?
     def subscribe(self, request, id=None):
         user_id = self.kwargs['id']
         user = self.request.user
         data = {'user': user.id, 'following': user_id}
         serializer = self.serializer_class(data=data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['DELETE'])
     def unsubscribe(self, request, id=None):
@@ -189,27 +201,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_create(self, serializer):
-        if serializer.is_valid(raise_exception=True):
-            recipe = serializer.save(author=self.request.user)
-            ingredients_data = self.request.data.get('ingredients', [])
-            tags_data = self.request.data.get('tags', [])
+        serializer.is_valid(raise_exception=True)
+        recipe = serializer.save(author=self.request.user)
+        ingredients_data = self.request.data.get('ingredients', [])
+        tags_data = self.request.data.get('tags', [])
 
-            for ingredient_data in ingredients_data:
-                ingredient_id = ingredient_data.get('id')
-                amount = ingredient_data.get('amount')
-                ingredient = get_object_or_404(Ingredient, id=ingredient_id)
-                RecipeIngredient.objects.create(recipe=recipe,
-                                                ingredient=ingredient,
-                                                amount=amount)
+        for ingredient_data in ingredients_data:
+            ingredient_id = ingredient_data.get('id')
+            amount = ingredient_data.get('amount')
+            ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+            RecipeIngredient.objects.create(recipe=recipe,
+                                            ingredient=ingredient,
+                                            amount=amount)
 
-            for tag_id in tags_data:
-                tag = get_object_or_404(Tag, id=tag_id)
-                TagRecipe.objects.create(tag=tag, recipe=recipe)
+        for tag_id in tags_data:
+            tag = get_object_or_404(Tag, id=tag_id)
+            TagRecipe.objects.create(tag=tag, recipe=recipe)
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()

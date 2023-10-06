@@ -4,8 +4,8 @@ from api.views import (CustomUserViewSet,
                        CustomUserMeViewSet, CustomUserUpdateViewSet,
                        TagViewSet, RecipeViewSet, SubscribeViewSet,
                        SubscribeListViewSet, IngredientViewSet,
-                       FavoriteViewSet, CustomUserLogoutView)
-
+                       FavoriteViewSet)
+from api.views import ResetTokenAPIView
 
 app_name = 'api'
 
@@ -16,8 +16,7 @@ router.register('recipes', RecipeViewSet)
 router.register('ingredients', IngredientViewSet)
 
 urlpatterns = [
-    path('auth/token/logout/', CustomUserLogoutView.as_view(),
-         name='token_logout'),
+    path('auth/token/logout/', ResetTokenAPIView.as_view(), name='logout'),
     path('users/me/', CustomUserMeViewSet.as_view(),
          name='users-me'),
     path('users/set_password/', CustomUserUpdateViewSet.as_view(),
