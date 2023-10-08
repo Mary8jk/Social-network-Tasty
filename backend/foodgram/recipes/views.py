@@ -1,8 +1,4 @@
 from rest_framework import viewsets
-from rest_framework.views import APIView
-from rest_framework_simplejwt.token_blacklist.models import (OutstandingToken,
-                                                             BlacklistedToken)
-from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
@@ -18,81 +14,15 @@ from users.models import User
 from recipes.models import (Tag, Recipe, Subscribe, Ingredient,
                             Favorite, RecipeIngredient, TagRecipe,
                             ShoppingCart)
-from .serializers import (CustomUserSerializer, TagSerializer,
+from .serializers import (TagSerializer,
                           RecipeListSerializer, SubscribeSerializer,
                           IngredientListSerializer,
                           FavoriteSerializer, RecipeSerializer,
-                          ShoppingCartSerializer, CustomUserUpdateSerializer,
+                          ShoppingCartSerializer,
                           SubscribeListSerializer)
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import AdminOrAuthorOrReadOnly
 from .paginations import CustomPagination
-
-
-class CustomUserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = CustomUserSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = PageNumberPagination
-
-    def list(self, request, *args, **kwargs):
-        users = self.get_queryset()
-        user = request.user
-        data = []
-        user_followers = user.follower.values_list('following', flat=True)
-        for user_to_check in users:
-            is_subscribed = user_to_check.id in user_followers
-            serializer = self.get_serializer(user_to_check)
-            user_data = serializer.data
-            user_data['is_subscribed'] = is_subscribed
-            data.append(user_data)
-        return Response(data)
-
-
-class CustomUserMeViewSet(generics.RetrieveAPIView):
-    serializer_class = CustomUserSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-
-class CustomUserUpdateViewSet(generics.CreateAPIView):
-    serializer_class = CustomUserUpdateSerializer
-    permission_classes = (AdminOrAuthorOrReadOnly,)
-
-
-class ResetTokenAPIView(APIView):
-    permission_classes = (IsAuthenticated,)
-    """
-    Adding all refresh tokens in black list
-    """
-    def post(self, request):
-        # Удали токен с клиента. На сервере, в случае JWT, не храни состояние
-        # сессии. Токены JWT могут быть действительными до истечения срока,
-        # даже если вы вышли из сессии. Для действительного выхода, добавь
-        # черный список (blacklist) для токенов. Пакет
-        # django-rest-framework-simplejwt обеспечивает черный список и
-        # обновление токенов автоматически. надеюсь так яснее)(ревью)
-        # в документации по JWT насколько я поняла есть инфа о том что
-        # только refresh можно кидать в чс. То есть я устанавливаю небольшую
-        # дельту для access, затем использую refresh.
-        # В случае когда добавляю токен в чс по auth/token/logout/ я прописываю
-        # в постмене во вкладке Authorization (тип Bearer token) токен
-        #  и затем при попытке обновления api/auth/token/refresh/ вижу что
-        # токен в блэклисте {"detail": "Token is blacklisted",
-        # "code": "token_not_valid"}. но в любом случае временную
-        # дельту access токен будет отрабатывать
-        # Такой вариант будет ок?
-        # вообще у нас в уроке к диплому "Подсказки и лайфхаки" есть фраза
-        # "При переносе стандартного процесса авторизации Django в формат
-        # REST API вам понадобится библиотека Djoser." но вроде как это
-        # просто рекомендация а не часть тз. Могу я оставить JWT?
-        tokens = OutstandingToken.objects.filter(user_id=request.user.id)
-        for token in tokens:
-            t, _ = BlacklistedToken.objects.get_or_create(token=token)
-        return Response('Successful Logout',
-                        status=status.HTTP_205_RESET_CONTENT)
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):

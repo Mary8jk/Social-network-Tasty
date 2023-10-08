@@ -1,11 +1,13 @@
 from rest_framework import routers
+from rest_framework_simplejwt.views import (TokenObtainPairView,
+                                            TokenRefreshView,
+                                            TokenVerifyView)
 from django.urls import include, path
-from api.views import (CustomUserViewSet,
-                       CustomUserMeViewSet, CustomUserUpdateViewSet,
-                       TagViewSet, RecipeViewSet, SubscribeViewSet,
-                       SubscribeListViewSet, IngredientViewSet,
-                       FavoriteViewSet)
-from api.views import ResetTokenAPIView
+from recipes.views import (TagViewSet, RecipeViewSet, SubscribeViewSet,
+                           SubscribeListViewSet, IngredientViewSet,
+                           FavoriteViewSet)
+from users.views import (ResetTokenAPIView, CustomUserViewSet,
+                         CustomUserMeViewSet, CustomUserUpdateViewSet)
 
 app_name = 'api'
 
@@ -16,6 +18,12 @@ router.register('recipes', RecipeViewSet)
 router.register('ingredients', IngredientViewSet)
 
 urlpatterns = [
+    path('auth/token/login/', TokenObtainPairView.as_view(),
+         name='token_obtain_pair'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(),
+         name='token_refresh'),
+    path('auth/token/verify/', TokenVerifyView.as_view(),
+         name='token_verify'),
     path('auth/token/logout/', ResetTokenAPIView.as_view(), name='logout'),
     path('users/me/', CustomUserMeViewSet.as_view(),
          name='users-me'),
