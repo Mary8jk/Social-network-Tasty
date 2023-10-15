@@ -59,9 +59,9 @@ SECRET_KEY=<Your_secret_key>
 DEBUG=False
 DJANGO_ALLOWED_HOSTS=<Your_host>
 ```
-Copy files from 'infra/' (on your local machine) to your server:
+Copy files from 'nginx/' (on your local machine) to your server:
 ```python
-scp -r infra/* <server user>@<server IP>:/home/<server user>/foodgram/
+scp -r nginx/* <server user>@<server IP>:/home/<server user>/foodgram/
 ```
 Run docker-compose:
 ```python
