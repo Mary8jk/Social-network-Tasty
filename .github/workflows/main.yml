@@ -103,7 +103,7 @@ jobs:
           push: true
           tags: mary8jk/foodgram_frontend:latest 
   
-   build_gateway_and_push_to_docker_hub:
+  build_gateway_and_push_to_docker_hub:
     name: Push gateway Docker image to DockerHub
     runs-on: ubuntu-latest
     steps:
