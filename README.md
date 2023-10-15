@@ -2,12 +2,13 @@
 
 <https://foooodgram.hopto.org>
 
+IP: <http://84.201.166.199/>
+
+Here is the link to the API: <https://foooodgram.hopto.org/api/>.
+
 This project is implemented in the form of a profile social network. Here you can share recipes of dishes, add them to favorites, display a shopping list for cooking your favorite dishes, download a shopping card in TXT format, and subscribe to other users.
 A local database is used to add ingredients to your recipes.
 
-Here is the link to the API: <https://>.
-
-Here is a link to the API documentation: <https://>.
 
 ## Technologies ##
 + Python 3.10.10
