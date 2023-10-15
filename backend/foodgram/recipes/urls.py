@@ -1,13 +1,13 @@
-from rest_framework import routers
-from rest_framework_simplejwt.views import (TokenObtainPairView,
-                                            TokenRefreshView,
-                                            TokenVerifyView)
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
-from recipes.views import (TagViewSet, RecipeViewSet, SubscribeViewSet,
-                           SubscribeListViewSet, IngredientViewSet,
-                           FavoriteViewSet)
-from users.views import (ResetTokenAPIView, CustomUserViewSet,
-                         CustomUserMeViewSet, CustomUserUpdateViewSet)
+from recipes.views import (FavoriteViewSet, IngredientViewSet, RecipeViewSet,
+                           SubscribeListViewSet, SubscribeViewSet, TagViewSet)
+from rest_framework import routers
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
+from users.views import (CustomTokenObtainPairView, CustomUserMeViewSet,
+                         CustomUserUpdateViewSet, CustomUserViewSet,
+                         ResetTokenAPIView)
 
 app_name = 'api'
 
@@ -18,7 +18,7 @@ router.register('recipes', RecipeViewSet)
 router.register('ingredients', IngredientViewSet)
 
 urlpatterns = [
-    path('auth/token/login/', TokenObtainPairView.as_view(),
+    path('auth/token/login/', CustomTokenObtainPairView.as_view(),
          name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(),
          name='token_refresh'),
@@ -43,3 +43,7 @@ urlpatterns = [
 
     path('', include(router.urls)),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

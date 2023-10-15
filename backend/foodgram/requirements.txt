@@ -5,6 +5,7 @@ django-cors-headers==3.13.0
 psycopg2-binary==2.9.3 
 djoser==2.1.0
 webcolors==1.11.1
+drf-base64==2.0
 psycopg2-binary==2.9.3
 Pillow==9.0.0
 pytest==6.2.4
@@ -15,6 +16,6 @@ python-dotenv
 djangorestframework-simplejwt==4.7.2
 PyJWT==2.1.0
 requests==2.26.0
-drf-extra-fields==2.0.0
+drf-extra-fields==3.7.0
 django-filter==23.3
 flake8==6.1.0

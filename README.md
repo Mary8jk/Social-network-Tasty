@@ -1,5 +1,7 @@
 # Foodgram #
 
+<https://foooodgram.hopto.org>
+
 This project is implemented in the form of a profile social network. Here you can share recipes of dishes, add them to favorites, display a shopping list for cooking your favorite dishes, download a shopping card in TXT format, and subscribe to other users.
 A local database is used to add ingredients to your recipes.
 
@@ -46,16 +48,15 @@ touch .env
 ```
 Add in the env-file like it:
 ```python
-DEBUG=False
-SECRET_KEY=<Your_string>
-ALLOWED_HOSTS=<Your_host>
-CSRF_TRUSTED_ORIGINS=https://<Your_host>
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=postgres
-POSTGRES_USER=postgres
+POSTGRES_USER=foodgram_user
 POSTGRES_PASSWORD=<Your_password>
-DB_HOST=foodgram-db
+POSTGRES_DB=foodgram
+DB_HOST=db
 DB_PORT=5432
+
+SECRET_KEY=<Your_secret_key>
+DEBUG=False
+DJANGO_ALLOWED_HOSTS=<Your_host>
 ```
 Copy files from 'infra/' (on your local machine) to your server:
 ```python

@@ -1,46 +1,44 @@
-from rest_framework import viewsets
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import (IsAuthenticated,
-                                        IsAuthenticatedOrReadOnly)
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.response import Response
 from django.db.models import Sum
 from django.http.response import HttpResponse
-from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Subscribe, Tag, TagRecipe)
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-
+from rest_framework.permissions import (IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
+from rest_framework.response import Response
 from users.models import User
-from recipes.models import (Tag, Recipe, Subscribe, Ingredient,
-                            Favorite, RecipeIngredient, TagRecipe,
-                            ShoppingCart)
-from .serializers import (TagSerializer,
-                          RecipeListSerializer, SubscribeSerializer,
-                          IngredientListSerializer,
-                          FavoriteSerializer, RecipeSerializer,
-                          ShoppingCartSerializer,
-                          SubscribeListSerializer)
+
 from .filters import IngredientFilter, RecipeFilter
-from .permissions import AdminOrAuthorOrReadOnly
 from .paginations import CustomPagination
+from .permissions import AdminOrAuthorOrReadOnly
+from .serializers import (FavoriteSerializer, IngredientListSerializer,
+                          RecipeListSerializer, RecipeSerializer,
+                          ShoppingCartSerializer, SubscribeListSerializer,
+                          SubscribeSerializer, TagSerializer)
 
 
-class TagViewSet(viewsets.ReadOnlyModelViewSet):
+class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = TagSerializer
     pagination_class = None
 
 
 class SubscribeListViewSet(viewsets.ModelViewSet):
     serializer_class = SubscribeListSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = CustomPagination
 
     @action(detail=False, methods=['GET'],)
     def subscriptions(self, request):
         queryset = User.objects.filter(
             following__user=request.user).prefetch_related('follower__recipes')
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        pages = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(pages, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class SubscribeViewSet(viewsets.GenericViewSet):
@@ -76,7 +74,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     permission_classes = [AdminOrAuthorOrReadOnly]
     pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = (DjangoFilterBackend, )
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
@@ -144,9 +142,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                             ingredient=ingredient,
                                             amount=amount)
 
-        for tag_id in tags_data:
-            tag = get_object_or_404(Tag, id=tag_id)
-            TagRecipe.objects.create(tag=tag, recipe=recipe)
+        for tags_id in tags_data:
+            tags = get_object_or_404(Tag, id=tags_id)
+            TagRecipe.objects.create(tags=tags, recipe=recipe)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -169,10 +167,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                                 amount=amount)
         if 'tags' in request.data:
             tags_data = request.data.get('tags', [])
-            instance.tag.clear()
-            for tag_id in tags_data:
-                tag = get_object_or_404(Tag, id=tag_id)
-                instance.tag.add(tag)
+            instance.tags.clear()
+            for tags_id in tags_data:
+                tag = get_object_or_404(Tag, id=tags_id)
+                instance.tags.add(tag)
             return Response(serializer.data)
 
 
@@ -180,8 +178,9 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientListSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [IngredientFilter]
-    pagination_class = PageNumberPagination
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
+    pagination_class = None
 
 
 class FavoriteViewSet(viewsets.GenericViewSet):

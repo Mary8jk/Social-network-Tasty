@@ -1,11 +1,12 @@
 from djoser.serializers import UserSerializer
+from recipes.models import Subscribe
 from rest_framework import serializers
 from users.models import User
-from recipes.models import Subscribe
 
 
 class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
+    password = serializers.CharField(write_only=True)
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
@@ -15,6 +16,22 @@ class CustomUserSerializer(UserSerializer):
             return is_subscribed
         return False
 
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            password=validated_data['password'],
+        )
+        data = {
+            'email': user.email,
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name, }
+        return data
+
     class Meta:
         model = User
         fields = ('email', 'id', 'username', 'first_name', 'last_name',
@@ -22,6 +39,27 @@ class CustomUserSerializer(UserSerializer):
         extra_kwargs = {
             'password': {'write_only': True},
         }
+
+
+class CustomTokenObtainSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if email and password:
+            user = User.objects.get(email=email)
+            if user.check_password(password):
+                data = {'email': email}
+                return data
+            else:
+                raise serializers.ValidationError(
+                    'Unable to log in with provided credentials.')
+        else:
+            raise serializers.ValidationError(
+                'Must include email and password.')
 
 
 class CustomUserUpdateSerializer(serializers.ModelSerializer):

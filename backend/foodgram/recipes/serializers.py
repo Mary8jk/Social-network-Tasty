@@ -1,11 +1,10 @@
+from drf_base64.fields import Base64ImageField
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Subscribe, Tag, TagRecipe)
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 from users.models import User
 from users.serializers import CustomUserSerializer
-from drf_extra_fields.fields import Base64ImageField
-from recipes.models import (Tag, Recipe, Ingredient,
-                            RecipeIngredient, Subscribe, Favorite,
-                            TagRecipe, ShoppingCart)
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -51,7 +50,7 @@ class RecipeIngredientDetailSerializer(serializers.ModelSerializer):
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
-    tag = TagSerializer(many=True)
+    tags = TagSerializer(many=True)
     author = CustomUserSerializer(
         read_only=True)
     ingredients = RecipeIngredientDetailSerializer(
@@ -61,7 +60,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        fields = ('id', 'tag', 'author', 'ingredients',
+        fields = ('id', 'tags', 'author', 'ingredients',
                   'is_favorited', 'is_in_shopping_cart',
                   'name', 'image', 'text', 'cooking_time')
 
@@ -79,10 +78,10 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
 
 class TagRecipeSerializer(serializers.ModelSerializer):
-    id = serializers.ReadOnlyField(source='tag.id')
-    name = serializers.ReadOnlyField(source='tag.name')
-    color = serializers.ReadOnlyField(source='tag.color')
-    slug = serializers.ReadOnlyField(source='tag.slug')
+    id = serializers.ReadOnlyField(source='tags.id')
+    name = serializers.ReadOnlyField(source='tags.name')
+    color = serializers.ReadOnlyField(source='tags.color')
+    slug = serializers.ReadOnlyField(source='tags.slug')
 
     class Meta:
         model = TagRecipe

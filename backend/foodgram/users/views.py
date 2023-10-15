@@ -1,23 +1,31 @@
-from rest_framework import viewsets
-from rest_framework.views import APIView
-from rest_framework_simplejwt.token_blacklist.models import (OutstandingToken,
-                                                             BlacklistedToken)
-from rest_framework import generics
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-
-from users.models import User
-from .serializers import CustomUserSerializer, CustomUserUpdateSerializer
 from recipes.permissions import AdminOrAuthorOrReadOnly
+from rest_framework import generics, status, viewsets
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.token_blacklist.models import (BlacklistedToken,
+                                                             OutstandingToken)
+from rest_framework_simplejwt.tokens import AccessToken
+from users.models import User
+
+from .serializers import (CustomTokenObtainSerializer, CustomUserSerializer,
+                          CustomUserUpdateSerializer)
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [IsAuthenticated]
     pagination_class = PageNumberPagination
+
+    def get_permissions(self):
+        if self.action == 'list':
+            permission_classes = [IsAuthenticated]
+        elif self.action == 'create':
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     def list(self, request, *args, **kwargs):
         users = self.get_queryset()
@@ -31,6 +39,35 @@ class CustomUserViewSet(viewsets.ModelViewSet):
             user_data['is_subscribed'] = is_subscribed
             data.append(user_data)
         return Response(data)
+
+    def post(self, request, *args, **kwargs):
+        serializer = CustomUserSerializer(data=request.data)
+        serializer.is_valid()
+        user = serializer.save()
+        response_data = {
+            'email': user.email,
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class CustomTokenObtainPairView(generics.CreateAPIView):
+    serializer_class = CustomTokenObtainSerializer
+    queryset = User.objects.all()
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        user = User.objects.get(email=email)
+        access = AccessToken.for_user(user)
+        access_token = str(access)
+        response_data = {"auth_token": access_token}
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class CustomUserMeViewSet(generics.RetrieveAPIView):
