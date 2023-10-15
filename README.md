@@ -17,6 +17,7 @@ A local database is used to add ingredients to your recipes.
 + PostgresQL
 + Docker
 + Postman
++ GitHub Actions
 
 ## To deploy this project need the next steps ##
 Download project with SSH:
