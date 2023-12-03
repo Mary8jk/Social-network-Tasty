@@ -23,7 +23,7 @@ Redoc: <http://localhost:9001/api/docs/>.
 ## Для развертывания этого проекта необходимы следующие шаги: ##
 Загрузите проект с использованием SSH:
 ```python
-git clone git@github.com:Mary8jk/foodgram-project-react.git
+git clone git@github.com:Mary8jk/Social-network-Tasty.git
 ```
 Подключитесь к своему серверу:
 ```python
