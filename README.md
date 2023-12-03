@@ -1,18 +1,16 @@
-# Foodgram #
+# Профильная социальная сеть #
 
-<https://foooodgram.hopto.org>
+Данный проект реализован в виде профильной социальной сети. Здесь вы можете делиться рецептами блюд, добавлять их в избранное, отображать список покупок для приготовления любимых блюд, загружать карточку покупок в формате TXT и подписываться на других пользователей. <br>
+Для добавления ингредиентов в ваши рецепты используется локальная база данных.
 
-IP: <http://84.201.166.199/>
+После запуска в контейнерах проект доступен по:
+<http://localhost:9001/>
 
-Here is the link to the API: <https://foooodgram.hopto.org/api/>.
+Здесь вы можете ознакомиться с API: <http://localhost:9001/api/>.
 
-Redoc: <https://foooodgram.hopto.org/api/docs/>.
+Redoc: <http://localhost:9001/api/docs/>.
 
-This project is implemented in the form of a profile social network. Here you can share recipes of dishes, add them to favorites, display a shopping list for cooking your favorite dishes, download a shopping card in TXT format, and subscribe to other users.
-A local database is used to add ingredients to your recipes.
-
-
-## Technologies ##
+## Стек технологий ##
 + Python 3.10.10
 + Django 3.2
 + Django REST Framework 3.12
@@ -21,36 +19,36 @@ A local database is used to add ingredients to your recipes.
 + Postman
 + GitHub Actions
 
-## To deploy this project need the next steps ##
-Download project with SSH:
+## Для развертывания этого проекта необходимы следующие шаги: ##
+Загрузите проект с использованием SSH:
 ```python
 git clone git@github.com:Mary8jk/foodgram-project-react.git
 ```
-Connect to your server:
+Подключитесь к своему серверу:
 ```python
 ssh <server user>@<server IP>
 ```
-Install Docker on your server:
+Установите Docker на свой сервер:
 ```python
 sudo apt install docker.io
 ```
-Install Docker Compose (for Linux):
+Установите Docker Compose (для Linux):
 ```python
 sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 ```
-Get permissions for docker-compose:
+Получите разрешение для docker-compose:
 ```python
 sudo chmod +x /usr/local/bin/docker-compose
 ```
-Create project directory (preferably in your home directory):
+Создайте директорию проекта:
 ```python
 mkdir foodgram && cd foodgram/
 ```
-Create env-file:
+Создайте env-file:
 ```python
 touch .env
 ```
-Add in the env-file like it:
+Добавьте в env-file данные:
 ```python
 POSTGRES_USER=foodgram_user
 POSTGRES_PASSWORD=<Your_password>
@@ -62,11 +60,11 @@ SECRET_KEY=<Your_secret_key>
 DEBUG=False
 DJANGO_ALLOWED_HOSTS=<Your_host>
 ```
-Copy files from 'nginx/' (on your local machine) to your server:
+Скопируйте файлы из 'nginx/' (на вашем локальном ПК) на ваш сервер:
 ```python
 scp -r nginx/* <server user>@<server IP>:/home/<server user>/foodgram/
 ```
-Run docker-compose:
+Запустите docker-compose:
 ```python
 sudo docker-compose up -d
 ```
